@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -24,6 +25,14 @@ namespace TGC.MonoGame.TP
         private Model CarModel { get; set; }
         private Matrix CarWorld { get; set; }
         private FollowCamera FollowCamera { get; set; }
+        //vectores físicos
+        private Vector3 Position { get; set; }
+        private Vector3 Velocity { get; set; }
+        private Vector3 Acceleration { get; set; } = Vector3.Zero;
+        //vectores físicos
+        private Quaternion Rotation { get; set; } = Quaternion.Identity;
+        private Vector3 RotationAxis {get; set; } = Vector3.UnitY;
+        private float RotationAngle = 0f;
 
 
         /// <summary>
@@ -78,6 +87,7 @@ namespace TGC.MonoGame.TP
             City = new CityScene(Content);
 
             // La carga de contenido debe ser realizada aca.
+            CarModel = Content.Load<Model>(ContentFolder3D + "scene/car");
 
             base.LoadContent();
         }
@@ -90,13 +100,40 @@ namespace TGC.MonoGame.TP
         {
             // Caputo el estado del teclado.
             var keyboardState = Keyboard.GetState();
+            var ElapsedGameTime = Convert.ToSingle(gameTime.ElapsedGameTime.TotalSeconds);
             if (keyboardState.IsKeyDown(Keys.Escape))
             {
                 // Salgo del juego.
                 Exit();
             }
+            if (keyboardState.IsKeyDown(Keys.W))
+            {
+                Acceleration = Vector3.Transform(Vector3.UnitZ * 100f, Rotation) * (- 1);
+            }
+            if (keyboardState.IsKeyDown(Keys.S))
+            {
+                Acceleration = Vector3.Transform(Vector3.UnitZ * 100f, Rotation);
+            }
+            if (keyboardState.IsKeyDown(Keys.A))
+            {
+                RotationAngle += 0.01f;
+            }
+            if (keyboardState.IsKeyDown(Keys.D))
+            {
+                RotationAngle -= 0.01f;
+            }   
 
             // La logica debe ir aca.
+            Rotation = Quaternion.CreateFromAxisAngle(RotationAxis, RotationAngle);
+
+            var direction = Vector3.Transform(Vector3.UnitZ, Rotation);
+
+            Velocity += Acceleration * ElapsedGameTime;
+            Position += direction * Velocity * ElapsedGameTime * 0.5f;
+            CarWorld = Matrix.CreateScale(1.0f) * Matrix.CreateFromQuaternion(Rotation) * Matrix.CreateTranslation(Position);
+            
+            //Vuelvo a setear la aceleración en 0 para que no acelere siempre
+            Acceleration = Vector3.Zero;
 
             // Actualizo la camara, enviandole la matriz de mundo del auto.
             FollowCamera.Update(gameTime, CarWorld);
@@ -118,6 +155,7 @@ namespace TGC.MonoGame.TP
             City.Draw(gameTime, FollowCamera.View, FollowCamera.Projection);
 
             // El dibujo del auto debe ir aca.
+            CarModel.Draw(CarWorld, FollowCamera.View, FollowCamera.Projection);
 
             base.Draw(gameTime);
         }
